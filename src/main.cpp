@@ -231,7 +231,7 @@ void HitActor(Character *source, Character *target, TESForm *weaponForm, BGSAtta
 
 	bool isBash = false;
 	if (isBowOrCrossbow || isShield || isTorch) {
-		// We hit with a bow, crossbow, shield, or torch
+		// We hit with a bow, crossbow, staff, shield, or torch
 		isBash = true;
 	}
 	else {
@@ -350,31 +350,13 @@ float GetPhysicsDamage(float mass, float speed)
 	g_fPhysicsDamageSpeedMin = 500.f;
 	*/
 
-	if (mass < Config::options.collisionDamageMinMass) return 0.f;
-	if (speed < Config::options.collisionDamageMinSpeed) return 0.f;
+	if (mass < Config::options.collisionDamageMinMass || speed < Config::options.collisionDamageMinSpeed) return 0.f;
 
-	float damage = 0.f;
-	if (mass >= *g_fPhysicsDamage1Mass) {
-		if (mass >= *g_fPhysicsDamage2Mass) {
-			if (mass >= *g_fPhysicsDamage3Mass) {
-				damage = *g_fPhysicsDamage3Damage;
-			}
-			else {
-				damage = lerp(*g_fPhysicsDamage2Damage, *g_fPhysicsDamage3Damage, (mass - *g_fPhysicsDamage2Mass) / (*g_fPhysicsDamage3Mass - *g_fPhysicsDamage2Mass));
-			}
-		}
-		else {
-			damage = lerp(*g_fPhysicsDamage1Damage, *g_fPhysicsDamage2Damage, (mass - *g_fPhysicsDamage1Mass) / (*g_fPhysicsDamage2Mass - *g_fPhysicsDamage1Mass));
-		}
-	}
-	else {
-		damage = lerp(0.f, *g_fPhysicsDamage1Damage, mass / *g_fPhysicsDamage1Mass);
-	}
+	float speedMult = (*g_fPhysicsDamageSpeedMult * speed * 10.f); // Skyrims units are insane, assume 1 speed unit is very small
+	float damage = (mass * pow(speedMult, 2)) * *g_fPhysicsDamage1Damage * 20.f / 2.f;
+	
 
-	float base = lerp(0.f, *g_fPhysicsDamageSpeedBase, min(1.f, speed / *g_fPhysicsDamageSpeedMin));
-	float damageMult = base + (*g_fPhysicsDamageSpeedMult * speed);
-
-	return damageMult * damage;
+	return damage;
 }
 
 struct GenericJob
@@ -842,7 +824,7 @@ struct ContactListener : hkpContactListener, hkpWorldPostSimulationListener
 			PlayMeleeImpactRumble(isTwoHanding ? 2 : isLeft);
 
 			if (Config::options.applyImpulseOnHit) {
-				ApplyHitImpulse(hitChar, hitRigidBody, hitVelocity, hitPosition * *g_havokWorldScale, impulseMult);
+				ApplyHitImpulse(hitChar, hitRigidBody, hitVelocity, hitPosition * *g_havokWorldScale, impulseMult + (GetFormWeight(weapon) / 10.0f));
 			}
 		}
 		else {
